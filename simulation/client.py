@@ -8,6 +8,12 @@ import time
 import random
 import sys
 
+from event_emitter import emit
+
+emit("sm1","regS1")
+emit("regS1","reg1")
+
+
 # Configuration
 SP_PORT = 9999
 
