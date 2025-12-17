@@ -1,3 +1,6 @@
+# dashboard.py
+# Dark Glassmorphic System Operator Dashboard
+
 from flask import Flask, render_template_string
 import socket
 import threading
@@ -5,121 +8,229 @@ import json
 import datetime
 
 # -------------------------
-# CONFIGURATION
+# CONFIG
 # -------------------------
-UDP_IP = '0.0.0.0'
+UDP_IP = "0.0.0.0"
 UDP_PORT = 8888
 WEB_PORT = 8080
 
 app = Flask(__name__)
 
-# Shared list to store incoming grid/IDS updates
-grid_data = []
+events = []   # ring buffer
+
 
 # -------------------------
-# 1) UDP LISTENER THREAD
+# UDP LISTENER
 # -------------------------
 def udp_listener():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
-    print(f"[*] Dashboard UDP listener running on {UDP_IP}:{UDP_PORT}")
+
+    print(f"[*] Dashboard UDP listener on {UDP_IP}:{UDP_PORT}")
 
     while True:
-        try:
-            data, addr = sock.recvfrom(4096)
-            report = json.loads(data.decode())
+        data, _ = sock.recvfrom(4096)
+        msg = json.loads(data.decode())
 
-            # Auto add timestamp
-            report["time"] = datetime.datetime.now().strftime("%H:%M:%S")
+        entry = {
+            "time": datetime.datetime.now().strftime("%H:%M:%S"),
+            "type": msg.get("type", "STATUS"),
+            "smId": msg.get("smId", "-"),
+            "sourceIp": msg.get("sourceIp", "-"),
+            "usage": msg.get("usage", "-"),
+            "status": msg.get("status", "-"),
+            "reason": msg.get("reason", "-"),
+            "score": msg.get("score", "-"),
+        }
 
-            # Keep last 30 rows max
-            grid_data.insert(0, report)
-            if len(grid_data) > 30:
-                grid_data.pop()
+        events.insert(0, entry)
+        if len(events) > 50:
+            events.pop()
 
-        except Exception as e:
-            print("[!] UDP receive error:", e)
 
 # -------------------------
-# 2) Web Dashboard (HTML)
+# UI
 # -------------------------
-HTML_TEMPLATE = """
+HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Q-BLAISE - Live System Operator Dashboard</title>
+    <title>Q-BLAISE | SO Dashboard</title>
     <meta http-equiv="refresh" content="2">
     <style>
-        body { 
-            font-family: Arial; 
-            background: #f5f5f5; 
-            padding: 20px; 
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at top, #1b2735, #090a0f);
+            color: #eee;
         }
-        h1 { color: #333; }
-        table {
-            width: 100%; 
-            border-collapse: collapse;
-            background: white;
-            box-shadow: 0px 0px 8px #ccc;
-        }
-        th {
-            background: #1976d2;
-            color: white;
-            padding: 10px;
-        }
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-        tr:nth-child(even) { background: #f0f0f0; }
 
-        .OK { color: green; font-weight: bold; }
-        .ALERT { color: red; font-weight: bold; }
+        h1 {
+            text-align: center;
+            margin: 15px 0;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+
+        /* ---------- Glass Card ---------- */
+        .glass {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        /* ---------- Layout ---------- */
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        .top {
+            flex: 0 0 40%;
+            display: flex;
+            gap: 15px;
+        }
+
+        .bottom {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ---------- Status Panels ---------- */
+        .panel {
+            flex: 1;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            font-weight: 400;
+        }
+
+        .alert {
+            color: #ff5252;
+            text-shadow: 0 0 10px rgba(255,82,82,0.6);
+        }
+
+        .status {
+            color: #4caf50;
+            text-shadow: 0 0 10px rgba(76,175,80,0.6);
+        }
+
+        .event {
+            padding: 8px;
+            margin: 6px 0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .ALERT {
+            background: rgba(255, 82, 82, 0.15);
+            border-left: 4px solid #ff5252;
+        }
+
+        .STATUS {
+            background: rgba(76, 175, 80, 0.15);
+            border-left: 4px solid #4caf50;
+        }
+
+        /* ---------- Table ---------- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            text-align: center;
+        }
+
+        tr.ALERT td { color: #ff8a80; }
+        tr.STATUS td { color: #a5d6a7; }
+
     </style>
 </head>
 <body>
-    <h1>⚡ Q-BLAISE: System Operator Dashboard</h1>
-    <h3>Live Grid Events (Auto-updates every 2 sec)</h3>
 
-    <table>
-        <tr>
-            <th>Time</th>
-            <th>Type</th>
-            <th>Source IP</th>
-            <th>Meter ID</th>
-            <th>Usage</th>
-            <th>Status</th>
-        </tr>
+<h1>System Operator – Live Grid & IDS Monitor</h1>
 
-        {% for row in data %}
-        <tr>
-            <td>{{ row.time }}</td>
-            <td>{{ row.type }}</td>
-            <td>{{ row.source_ip }}</td>
-            <td>{{ row.sm_id }}</td>
-            <td>{{ row.usage }}</td>
-            <td class="{{ row.status }}">{{ row.status }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+<div class="container">
+
+    <!-- UPPER HALF -->
+    <div class="top">
+        <div class="panel glass">
+            <h2 class="alert">🚨 Active Alerts</h2>
+            {% for e in data if e.type == 'ALERT' %}
+            <div class="event ALERT">
+                <b>{{ e.time }}</b> | {{ e.smId }} | {{ e.reason }} | Score: {{ e.score }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="panel glass">
+            <h2 class="status">✅ System Status</h2>
+            {% for e in data if e.type == 'STATUS' %}
+            <div class="event STATUS">
+                <b>{{ e.time }}</b> | {{ e.smId }} | Usage: {{ e.usage }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- LOWER HALF -->
+    <div class="bottom glass" style="padding:15px; overflow-y:auto;">
+        <h2>📜 Event Log (From SO)</h2>
+        <table>
+            <tr>
+                <th>Time</th><th>Type</th><th>SM</th><th>IP</th>
+                <th>Usage</th><th>Status</th><th>Reason</th><th>Score</th>
+            </tr>
+            {% for e in data %}
+            <tr class="{{ e.type }}">
+                <td>{{ e.time }}</td>
+                <td>{{ e.type }}</td>
+                <td>{{ e.smId }}</td>
+                <td>{{ e.sourceIp }}</td>
+                <td>{{ e.usage }}</td>
+                <td>{{ e.status }}</td>
+                <td>{{ e.reason }}</td>
+                <td>{{ e.score }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
 
 </body>
 </html>
 """
 
+
 @app.route("/")
 def index():
-    return render_template_string(HTML_TEMPLATE, data=grid_data)
+    return render_template_string(HTML, data=events)
+
 
 # -------------------------
-# MAIN START
+# MAIN
 # -------------------------
 if __name__ == "__main__":
-    # Start UDP listener
-    t = threading.Thread(target=udp_listener)
-    t.daemon = True
+    t = threading.Thread(target=udp_listener, daemon=True)
     t.start()
 
-    # Start dashboard
-    print(f"[*] Web Dashboard available at http://0.0.0.0:{WEB_PORT}")
+    print(f"[*] Dashboard running at http://0.0.0.0:{WEB_PORT}")
     app.run(host="0.0.0.0", port=WEB_PORT, debug=False)

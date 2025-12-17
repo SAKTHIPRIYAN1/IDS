@@ -1,0 +1,1 @@
+sudo mn --custom ./myTopo.py --topo myTopo --mac --link=tc

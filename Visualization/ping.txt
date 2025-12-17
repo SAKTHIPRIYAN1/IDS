@@ -1,0 +1,49 @@
+
+
+fro sm1 to 5
+---------------------------------------------
+# Ping REG1 (default gateway)
+ping 10.0.1.254
+
+# Ping SP
+ping 10.0.99.2
+
+
+
+
+for sm6 to 10
+-----------------------------------------------
+# Ping REG2 (default gateway)
+ping 10.0.2.254
+
+# Ping SP
+ping 10.0.98.2
+
+
+
+FROM REG1
+# Ping SP
+ping 10.0.99.2
+
+# Ping SO
+ping 10.0.3.1
+
+
+
+FROM REG2
+-----------------------------------------------
+# Ping SP
+ping 10.0.98.2
+
+# Ping SO
+ping 10.0.3.1
+
+
+
+FROM SP
+-----------------------------------------------
+# Ping SO
+ping 10.0.3.1
+
+
+

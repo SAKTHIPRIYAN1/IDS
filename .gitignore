@@ -1,6 +1,5 @@
 visualizer/node_modules/
 DataSet/**
 Files/**
-.gitignore
 simulation/__pycache__/**
 simulation/__pycache__
