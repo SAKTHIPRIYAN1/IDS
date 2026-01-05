@@ -1,5 +1,4 @@
-# recon_attack.py
-# UNSW-style Reconnaissance Smart Meter
+# brust
 
 import socket
 import json
@@ -13,7 +12,7 @@ SP_PORT = 9999
 # Recon pattern
 BURST_SIZE = 20          # packets per burst
 BURST_INTERVAL = 0.02    # fast probing
-SLEEP_BETWEEN = 2.0      # idle gap (important!)
+SLEEP_BETWEEN = 2.0      # idle gap 
 
 def run_recon(sm_id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -25,7 +24,6 @@ def run_recon(sm_id):
     print("-" * 50)
 
     while True:
-        # --- Burst ---
         for _ in range(BURST_SIZE):
             msg = {
                 "smId": sm_id,
@@ -37,7 +35,7 @@ def run_recon(sm_id):
             sock.sendto(json.dumps(msg).encode(), (SP_IP, SP_PORT))
             time.sleep(BURST_INTERVAL)
 
-        # --- Idle gap ---
+
         time.sleep(SLEEP_BETWEEN)
 
 if __name__ == "__main__":

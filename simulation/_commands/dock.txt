@@ -1,0 +1,23 @@
+on host ter 
+    docker build -t mininet-ids -f simulation/docker/Dockerfile simulation/
+
+    xhost +local:docker
+
+    docker run -it --rm \
+    --privileged \
+    --network host \
+    -e DISPLAY=$DISPLAY \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    -v ~/Desktop/FYP/simulation:/simulation \
+    --name mininet-sim \
+    mininet-ids
+
+on opened docker ter
+    service openvswitch-switch start
+
+
+for opening other dock ter
+    docker exec -it mininet-sim bash
+
+
+

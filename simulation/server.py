@@ -1,7 +1,6 @@
 # server.py
-# heart piece of this project
-# have Ids, XAI
-# from REG (SM) -> to SO
+# SERVICE PROVIDER (REG) -> SYSTEM OPERATOR (SO)
+# IDS + XAI (NO AUTO CONCLUSION)
 
 import socket
 import json
@@ -11,26 +10,27 @@ from collections import defaultdict
 
 from ids_model import check_hybrid_intrusion_live
 
-
 LISTEN_PORT = 9999
 SO_IP = "10.0.3.2"
 SO_PORT = 9999
 
 WINDOW_SIZE = 1.0
 
-
+# ---------------- FLOW STATE ----------------
 flows = defaultdict(lambda: {
     "start_time": None,
     "last_time": None,
     "spkts": 0,
-    "dpkts": 0,
     "sbytes": 0,
-    "dbytes": 0,
     "jitters": []
 })
 
+# ---------------- REPLAY STATE ----------------
+replay_history = defaultdict(list)
+REPLAY_WINDOW = 6
+REPLAY_THRESHOLD = 5
 
-
+# ---------------- FLOW UPDATE ----------------
 def update_flow(sm_id, pkt_size):
     now = time.time()
     f = flows[sm_id]
@@ -53,11 +53,7 @@ def update_flow(sm_id, pkt_size):
     if dur >= WINDOW_SIZE:
         rate = f["spkts"] / dur if dur > 0 else 0
         sload = f["sbytes"] / dur if dur > 0 else 0
-
-        if len(f["jitters"]) >= 2:
-            sjit = abs(f["jitters"][-1] - f["jitters"][-2])
-        else:
-            sjit = 0.0
+        sjit = abs(f["jitters"][-1] - f["jitters"][-2]) if len(f["jitters"]) >= 2 else 0.0
 
         features = {
             "dur": dur,
@@ -73,14 +69,11 @@ def update_flow(sm_id, pkt_size):
             "sjit": sjit
         }
 
-        # Reset flow window
         flows[sm_id] = {
             "start_time": None,
             "last_time": None,
             "spkts": 0,
-            "dpkts": 0,
             "sbytes": 0,
-            "dbytes": 0,
             "jitters": []
         }
 
@@ -88,11 +81,7 @@ def update_flow(sm_id, pkt_size):
 
     return None
 
-replay_history = defaultdict(list)
-
-REPLAY_WINDOW = 6        
-REPLAY_THRESHOLD = 5       
-
+# ---------------- REPLAY DETECTION ----------------
 def detect_replay(sm_id, usage):
     history = replay_history[sm_id]
     history.append(usage)
@@ -100,13 +89,9 @@ def detect_replay(sm_id, usage):
     if len(history) > REPLAY_WINDOW:
         history.pop(0)
 
+    return len(history) >= REPLAY_THRESHOLD and len(set(history)) == 1
 
-    if len(history) >= REPLAY_THRESHOLD and len(set(history)) == 1:
-        return True
-
-    return False
-
-
+# ---------------- SERVER ----------------
 def start_server():
     recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sock.bind(("0.0.0.0", LISTEN_PORT))
@@ -116,7 +101,6 @@ def start_server():
     print("\n[*] SERVICE PROVIDER STARTED")
     print(f"[*] Listening on UDP {LISTEN_PORT}")
     print(f"[*] Forwarding to SO {SO_IP}:{SO_PORT}")
-    print(f"[*] IDS Window Size: {WINDOW_SIZE}s")
     print("-" * 60)
 
     while True:
@@ -128,60 +112,57 @@ def start_server():
             pkt_size = len(data)
 
             features = update_flow(sm_id, pkt_size)
-
-            if features is None:
+            if not features:
                 continue
 
             now = datetime.datetime.now().strftime("%H:%M:%S")
 
             print(f"\n[{now}] Window closed for {sm_id}")
-            print(f" spkts={features['spkts']} rate={features['rate']:.2f}")
-            print(f" sload={features['sload']:.2f}")
             print(f"[DEBUG] IDS features: {features}")
 
-            # ---- replay test----
-            is_replay = detect_replay(sm_id, payload.get("usage", 0))
-
-            isAttack, reason, score = check_hybrid_intrusion_live(features)
-
-            
-            if is_replay and features["rate"] < 20:
-                isAttack = True
-                reason = "Replay Attack"
-                score=1.0
-
-
-            if isAttack:
-                print(" ATTACK DETECTED")
-                print(f"   Reason: {reason}")
-                print(f"   Score : {score}")
-
+            # Replay check (rule-based)
+            if detect_replay(sm_id, payload.get("usage", 0)):
                 report = {
                     "type": "ALERT",
                     "smId": sm_id,
-                    "reason": reason,
-                    "score": float(score),
+                    "reason": "Rule-based Replay Detection",
+                    "xai": "Repeated identical packet usage observed across time windows",
+                    "score": 1.0,
                     "sourceIp": addr[0],
-                    "timestamp": time.time(),
                     "usage": payload.get("usage", 0),
-                    "status": "Stable",
+                    "status": "Unstable"
                 }
+
             else:
-                print(" NORMAL")
-                report = {
-                    "type": "STATUS",
-                    "smId": sm_id,
-                    "usage": payload.get("usage", 0),
-                    "status": "Stable",
-                    "sourceIp": addr[0]
-                }
+                # ML-based IDS
+                isAttack, model_reason, score, xai_exp, _ = \
+                    check_hybrid_intrusion_live(features)
+
+                if isAttack:
+                    report = {
+                        "type": "ALERT",
+                        "smId": sm_id,
+                        "reason": model_reason,
+                        "xai": xai_exp,
+                        "score": float(score),
+                        "sourceIp": addr[0],
+                        "usage": payload.get("usage", 0),
+                        "status": "Unstable"
+                    }
+                else:
+                    report = {
+                        "type": "STATUS",
+                        "smId": sm_id,
+                        "usage": payload.get("usage", 0),
+                        "status": "Stable",
+                        "sourceIp": addr[0]
+                    }
 
             send_sock.sendto(json.dumps(report).encode(), (SO_IP, SO_PORT))
             print(" → Forwarded to SO")
 
         except Exception as e:
             print("[ERROR]", e)
-
 
 if __name__ == "__main__":
     start_server()

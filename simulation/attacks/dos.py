@@ -1,5 +1,3 @@
-# attack_client.py
-# Malicious Smart Meter (DoS / Flooding)
 
 import socket
 import json
