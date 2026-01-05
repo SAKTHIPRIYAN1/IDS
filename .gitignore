@@ -1,5 +1,9 @@
 visualizer/node_modules/
 DataSet/**
 Files/**
+simulation/__pycache__/*
 simulation/__pycache__/**
+simulation/__pycache__
+simulation/docker/images/*
+simulation/docker/images
 simulation/__pycache__
