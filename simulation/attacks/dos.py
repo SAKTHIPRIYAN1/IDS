@@ -10,7 +10,7 @@ SP_PORT = 9999
 
 SM_ID = "sm1_attack"
 
-SEND_INTERVAL = 0.0001   
+SEND_INTERVAL = 0.000001   
 PAYLOAD_SIZE = 120      
 
 def run_attack_client(sm_id):
