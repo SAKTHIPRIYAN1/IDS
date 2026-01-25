@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     git \
     cmake \
     build-essential \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install liboqs
@@ -27,7 +28,11 @@ RUN git clone https://github.com/open-quantum-safe/liboqs && \
     cmake .. && \
     make && \
     make install && \
+    ldconfig && \
     cd / && rm -rf liboqs
+
+# Set LD_LIBRARY_PATH for liboqs
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 RUN apt-get update && apt-get install -y \
     xterm \
@@ -38,11 +43,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /simulation
 
 # 3. Python deps
-COPY ../requirements.txt .
+COPY simulation/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # 4. Copy full simulation code
-COPY .. .
+COPY simulation/ .
 
 # 5. Entrypoint
 COPY entrypoint.sh /entrypoint.sh

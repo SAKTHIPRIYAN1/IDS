@@ -108,8 +108,13 @@ def start_server():
             data, addr = recv_sock.recvfrom(8192)
             payload = json.loads(data.decode())
 
-            sm_id = payload.get("smId", "unknown")
+            sm_id = payload.get("smId") or payload.get("sm_id", "unknown")
             pkt_size = len(data)
+
+            # If auth payload from REG, log and skip IDS
+            if "reg_id" in payload:
+                print(f"[SP] Auth received for {sm_id} from REG {payload['reg_id']}")
+                continue
 
             features = update_flow(sm_id, pkt_size)
             if not features:

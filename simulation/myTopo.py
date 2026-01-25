@@ -1,6 +1,7 @@
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.link import TCLink
+from mininet.link import Link
+from mininet.node import LinuxBridge
 
 class myTopo(Topo):
     def __init__(self):
@@ -15,8 +16,8 @@ class myTopo(Topo):
         reg2 = self.addHost('reg2', ip='10.0.2.254/24')
 
         # reg Switches
-        regS1 = self.addSwitch('regS1') 
-        regS2 = self.addSwitch('regS2')
+        regS1 = self.addSwitch('regS1', cls=LinuxBridge) 
+        regS2 = self.addSwitch('regS2', cls=LinuxBridge)
         self.addLink(reg1, regS1)
         self.addLink(reg2, regS2)
 

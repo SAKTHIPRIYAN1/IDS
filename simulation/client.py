@@ -8,6 +8,7 @@ import json
 import time
 import random
 import sys
+from sm import SmartMeter
 
 SP_IP = "10.0.3.1"
 SP_PORT = 9999
@@ -19,7 +20,23 @@ def run_sender(sm_id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     print(f"[*] Smart Meter {sm_id} started")
-    print(f"[*] Sending to SP {SP_IP}:{SP_PORT}")
+
+    # PQC Auth
+    sm = SmartMeter(sm_id)
+    sm.enroll()
+    sm.authenticate()
+    auth_payload = sm.build_auth_payload(b"AUTH_REQUEST")
+
+    # Determine REG IP
+    sm_num = int(sm_id[2:])
+    reg_ip = "10.0.1.254" if sm_num <= 5 else "10.0.2.254"
+    reg_port = 9998
+
+    # Send auth to REG
+    sock.sendto(json.dumps(auth_payload).encode(), (reg_ip, reg_port))
+    print(f"[SM → REG] Auth sent to {reg_ip}:{reg_port}")
+
+    print(f"[*] Sending usage to SP {SP_IP}:{SP_PORT}")
     print("Press CTRL+C to stop\n")
 
     try:
