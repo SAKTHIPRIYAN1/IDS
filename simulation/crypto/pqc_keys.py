@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import hashlib
 import oqs
 
@@ -18,7 +21,7 @@ def generate_dilithium_keys(seed: bytes):
     """
     Dilithium signature key generation
     """
-    with oqs.Signature("Dilithium3") as sig:
+    with oqs.Signature("ML-DSA-65") as sig:
         pk = sig.generate_keypair()
         sk = sig.export_secret_key()
         return pk, sk

@@ -22,7 +22,7 @@ class REGNode:
         dil_pk = auth_payload["dilithium_pk"]
         signature = auth_payload["signature"]
 
-        with oqs.Signature("Dilithium3") as verifier:
+        with oqs.Signature("ML-DSA-65") as verifier:
             is_valid = verifier.verify(
                 message,
                 signature,

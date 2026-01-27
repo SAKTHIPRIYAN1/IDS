@@ -1,7 +1,10 @@
 import socket
 import json
 import sys
-from puf.reg_node import REGNode
+
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from crypto.reg_node import REGNode
 
 # REG listens on port 9998 for SM auth
 LISTEN_PORT = 9998

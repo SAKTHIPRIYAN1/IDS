@@ -1,7 +1,9 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from puf import SimulatedPUF, generate_device_secret
 from fuzzy_extractor import helper_gen, helper_rep
 from global_store import register_device, get_device
-import os
 
 def enroll_device(device_id: str):
     device_secret = generate_device_secret()

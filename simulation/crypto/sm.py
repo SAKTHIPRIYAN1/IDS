@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from puf_identity import enroll_device, authenticate_device
 from pqc_keys import derive_seed, generate_kyber_keys, generate_dilithium_keys
 import oqs
@@ -39,7 +42,7 @@ class SmartMeter:
         if self._dilithium_sk is None:
             raise Exception("Authenticate first")
 
-        with oqs.Signature("Dilithium3", self._dilithium_sk) as signer:
+        with oqs.Signature("ML-DSA-65", self._dilithium_sk) as signer:
             signature = signer.sign(message)
 
         return {

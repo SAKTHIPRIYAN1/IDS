@@ -7,6 +7,11 @@ import socket
 import json
 import time
 import threading
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from reg_node import REGNode
 from sm import SmartMeter
 

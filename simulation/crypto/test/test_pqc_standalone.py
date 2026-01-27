@@ -8,8 +8,13 @@ import json
 import time
 import threading
 import socket
-from simulation.puf.sm import SmartMeter
-from simulation.puf.reg_node import REGNode
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sm import SmartMeter
+from reg_node import REGNode
 
 # Configuration
 REG_PORT = 9998

@@ -8,7 +8,10 @@ import json
 import time
 import random
 import sys
-from puf.sm import SmartMeter
+
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from crypto.sm import SmartMeter
 
 SP_IP = "10.0.3.1"
 SP_PORT = 9999
