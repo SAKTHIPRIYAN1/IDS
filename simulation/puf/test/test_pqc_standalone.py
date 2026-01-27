@@ -8,8 +8,8 @@ import json
 import time
 import threading
 import socket
-from sm import SmartMeter
-from reg_node import REGNode
+from simulation.puf.sm import SmartMeter
+from simulation.puf.reg_node import REGNode
 
 # Configuration
 REG_PORT = 9998

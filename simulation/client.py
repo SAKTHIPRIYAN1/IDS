@@ -8,7 +8,7 @@ import json
 import time
 import random
 import sys
-from sm import SmartMeter
+from puf.sm import SmartMeter
 
 SP_IP = "10.0.3.1"
 SP_PORT = 9999

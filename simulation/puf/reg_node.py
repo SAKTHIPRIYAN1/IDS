@@ -71,3 +71,34 @@ class REGNode:
             "sm_kyber_pk": auth_payload["kyber_pk"],
             "signature": auth_payload["signature"]
         }
+
+if __name__ == "__main__":
+    from sm import SmartMeter
+
+    # Initialize SM & REG
+    sm = SmartMeter("SM_001")
+    reg = REGNode("REG_01")
+
+    # Enrollment (one-time)
+    sm.enroll()
+
+    # SM authentication
+    sm.authenticate()
+    message = b"AUTH_REQUEST"
+    auth_payload = sm.build_auth_payload(message)
+
+    # REG verifies SM
+    if reg.verify_sm(auth_payload, message):
+        kyber_ct, ss_reg_sm = reg.encapsulate_for_sm(
+            auth_payload["kyber_pk"]
+        )
+
+        print("[REG] Shared secret length:", len(ss_reg_sm))
+
+        forward_msg = reg.build_forward_message(
+            auth_payload,
+            kyber_ct
+        )
+
+        print("\n[REG] Forwarding to SP:")
+        print(forward_msg.keys())
