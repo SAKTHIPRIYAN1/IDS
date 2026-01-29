@@ -15,12 +15,13 @@ class REGNode:
         """
         auth_payload contains:
         - device_id
-        - dilithium_pk
-        - signature
+        - dilithium_pk (hex string)
+        - signature (hex string)
         """
 
-        dil_pk = auth_payload["dilithium_pk"]
-        signature = auth_payload["signature"]
+        # Convert hex strings back to bytes
+        dil_pk = bytes.fromhex(auth_payload["dilithium_pk"])
+        signature = bytes.fromhex(auth_payload["signature"])
 
         with oqs.Signature("ML-DSA-65") as verifier:
             is_valid = verifier.verify(
@@ -39,15 +40,17 @@ class REGNode:
     # --------------------------------------------------
     # Step 2: Kyber encapsulation for SM
     # --------------------------------------------------
-    def encapsulate_for_sm(self, sm_kyber_pk: bytes):
+    def encapsulate_for_sm(self, sm_kyber_pk_hex: str):
         """
-        Perform Kyber encapsulation using SM public key
+        Perform Kyber encapsulation using SM public key (hex string)
         """
+        # Convert hex string back to bytes
+        sm_kyber_pk = bytes.fromhex(sm_kyber_pk_hex)
 
-        with oqs.KeyEncapsulation("Kyber768") as kem:
+        with oqs.KeyEncapsulation("ML-KEM-768") as kem:
             ciphertext, shared_secret = kem.encap_secret(sm_kyber_pk)
 
-        print("[REG] Kyber encapsulation completed")
+        print("[REG] ML-KEM encapsulation completed")
 
         return ciphertext, shared_secret
 
@@ -60,13 +63,13 @@ class REGNode:
         kyber_ct: bytes
     ):
         """
-        REG → SP payload
+        REG → SP payload (hex-encode bytes for JSON)
         """
         return {
             "sm_id": auth_payload["device_id"],
             "reg_id": self.reg_id,
             "timestamp": int(time.time()),
-            "kyber_ct": kyber_ct,
+            "kyber_ct": kyber_ct.hex(),
             "sm_dilithium_pk": auth_payload["dilithium_pk"],
             "sm_kyber_pk": auth_payload["kyber_pk"],
             "signature": auth_payload["signature"]

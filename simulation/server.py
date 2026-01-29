@@ -1,20 +1,25 @@
 # server.py
-# SERVICE PROVIDER (REG) -> SYSTEM OPERATOR (SO)
-# IDS + XAI (NO AUTO CONCLUSION)
+# SERVICE PROVIDER (REG + SM -> IDS -> SO)
+# PQC-enabled auth from REG, usage from SM, IDS checks, forward to SO
 
 import socket
 import json
 import time
 import datetime
+import threading
 from collections import defaultdict
 
 from ids_model import check_hybrid_intrusion_live
 
-LISTEN_PORT = 9999
+LISTEN_PORT_USAGE = 9999      # UDP: SM usage messages
+LISTEN_PORT_AUTH = 10999      # TCP: REG auth messages
 SO_IP = "10.0.3.2"
 SO_PORT = 9999
 
 WINDOW_SIZE = 1.0
+
+# -------- AUTH STATE --------
+authenticated_devices = {}  # {device_id: auth_data}
 
 # ---------------- FLOW STATE ----------------
 flows = defaultdict(lambda: {
@@ -81,7 +86,42 @@ def update_flow(sm_id, pkt_size):
 
     return None
 
-# ---------------- REPLAY DETECTION ----------------
+# -------- AUTH HANDLER (TCP) --------
+def handle_auth_from_reg():
+    """Listen on TCP 10999 for auth from REG"""
+    tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcp_sock.bind(("0.0.0.0", LISTEN_PORT_AUTH))
+    tcp_sock.listen(1)
+    
+    print(f"[SP] Auth listener on TCP port {LISTEN_PORT_AUTH}")
+    
+    try:
+        while True:
+            conn, addr = tcp_sock.accept()
+            try:
+                data = conn.recv(16384)
+                if data:
+                    auth_msg = json.loads(data.decode())
+                    sm_id = auth_msg.get("sm_id")
+                    
+                    # Store auth data for this device
+                    authenticated_devices[sm_id] = {
+                        "timestamp": time.time(),
+                        "kyber_ct": auth_msg.get("kyber_ct"),
+                        "signature": auth_msg.get("signature"),
+                        "reg_id": auth_msg.get("reg_id")
+                    }
+                    
+                    print(f"[SP] ✓ Auth received for SM {sm_id} from REG {auth_msg.get('reg_id')}")
+            except Exception as e:
+                print(f"[SP] Auth error: {e}")
+            finally:
+                conn.close()
+    except KeyboardInterrupt:
+        tcp_sock.close()
+
+# ---------- REPLAY DETECTION ----------
 def detect_replay(sm_id, usage):
     history = replay_history[sm_id]
     history.append(usage)
@@ -91,15 +131,20 @@ def detect_replay(sm_id, usage):
 
     return len(history) >= REPLAY_THRESHOLD and len(set(history)) == 1
 
-# ---------------- SERVER ----------------
+# ---------- SERVER ----------
 def start_server():
+    # Start auth listener in separate thread
+    auth_thread = threading.Thread(target=handle_auth_from_reg, daemon=True)
+    auth_thread.start()
+    
+    # Usage listener (UDP)
     recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    recv_sock.bind(("0.0.0.0", LISTEN_PORT))
+    recv_sock.bind(("0.0.0.0", LISTEN_PORT_USAGE))
 
     send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     print("\n[*] SERVICE PROVIDER STARTED")
-    print(f"[*] Listening on UDP {LISTEN_PORT}")
+    print(f"[*] Listening on UDP {LISTEN_PORT_USAGE} (usage) and TCP {LISTEN_PORT_AUTH} (auth)")
     print(f"[*] Forwarding to SO {SO_IP}:{SO_PORT}")
     print("-" * 60)
 

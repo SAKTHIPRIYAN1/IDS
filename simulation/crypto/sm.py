@@ -47,7 +47,7 @@ class SmartMeter:
 
         return {
             "device_id": self.device_id,
-            "kyber_pk": self._kyber_pk,
-            "dilithium_pk": self._dilithium_pk,
-            "signature": signature
+            "kyber_pk": self._kyber_pk.hex(),
+            "dilithium_pk": self._dilithium_pk.hex(),
+            "signature": signature.hex()
         }

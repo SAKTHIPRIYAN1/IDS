@@ -35,9 +35,18 @@ def run_sender(sm_id):
     reg_ip = "10.0.1.254" if sm_num <= 5 else "10.0.2.254"
     reg_port = 9998
 
-    # Send auth to REG
-    sock.sendto(json.dumps(auth_payload).encode(), (reg_ip, reg_port))
-    print(f"[SM → REG] Auth sent to {reg_ip}:{reg_port}")
+    # Send auth to REG via TCP (auth payload is large)
+    try:
+        auth_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        auth_sock.connect((reg_ip, reg_port))
+        auth_sock.sendall(json.dumps(auth_payload).encode())
+        auth_sock.close()
+        print(f"[SM → REG] Auth sent to {reg_ip}:{reg_port}")
+    except Exception as e:
+        print(f"[SM] Auth error: {e}")
+
+    # Create UDP socket for usage messages
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     print(f"[*] Sending usage to SP {SP_IP}:{SP_PORT}")
     print("Press CTRL+C to stop\n")
