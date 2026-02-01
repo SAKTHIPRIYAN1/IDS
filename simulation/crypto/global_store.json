@@ -1,0 +1,17 @@
+{
+    "devices": {
+        "sm6": {
+            "challenge": "15f642e59241779db51d88179e3976a015815a5ac0cdd16238f26ba98c5478ec",
+            "helper_data": "ff25c8b4437fdd5df9de3fb4105dbb7c49dbe76a0f373b541d4edbb67794e9bc",
+            "puf_secret": "b9a6029df220fa67acca4e7b87192d37b6dbcab613848283e100fd8c12e72d18",
+            "puf_response": "2a17ca73f5a473721ec186957f623c02f44d4bc6c8b57d93755590c57d6519da"
+        },
+        "sm1": {
+            "challenge": "7a7b7ccab2ddd5e0c0a27532bc67ba6bdadf4f43a813ec3b3ca4403ad751569a",
+            "helper_data": "ccdc227f15df0700b1ade81be19a16d1ac486e756edcb2f09647b21ca363b2e3",
+            "puf_secret": "1bd325abec65767cb6110d0c4ae5ff827d3a0cac24dd457c3317c38e57b4e914",
+            "puf_response": "8db5eae76520d788634e6d94b3b2e158ac6ac49f18f768c5cc9284af3c3bdd89"
+        }
+    },
+    "sessions": {}
+}

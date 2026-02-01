@@ -1,3 +1,4 @@
+
 on host ter 
     docker build -t mininet-ids -f simulation/docker/Dockerfile simulation/
 
@@ -12,8 +13,10 @@ on host ter
     --name mininet-sim \
     mininet-ids
 
+
 on opened docker ter
     service openvswitch-switch start
+
 
 
 for opening other dock ter

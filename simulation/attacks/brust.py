@@ -1,4 +1,5 @@
-# brust
+# burst_attack.py
+# Temporal Burst Attack (SM → SP)
 
 import socket
 import json
@@ -9,38 +10,64 @@ import sys
 SP_IP = "10.0.3.1"
 SP_PORT = 9999
 
-# Recon pattern
-BURST_SIZE = 20          # packets per burst
-BURST_INTERVAL = 0.02    # fast probing
-SLEEP_BETWEEN = 2.0      # idle gap 
+REG_MAP = {
+    "sm1": "10.0.1.254", "sm2": "10.0.1.254", "sm3": "10.0.1.254",
+    "sm4": "10.0.1.254", "sm5": "10.0.1.254",
+    "sm6": "10.0.2.254", "sm7": "10.0.2.254", "sm8": "10.0.2.254",
+    "sm9": "10.0.2.254", "sm10": "10.0.2.254"
+}
 
-def run_recon(sm_id):
+# -------- BURST CONFIG --------
+BURST_SIZE = 12              # packets per burst
+BURST_INTERVAL = 0.01        # very fast inside burst
+IDLE_TIME = 6.0              # long silence → temporal anomaly
+
+
+def run_burst(sm_id):
+    if sm_id not in REG_MAP:
+        print("[ERROR] Invalid SM ID")
+        return
+
+    reg_ip = REG_MAP[sm_id]
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    print("[*] RECON ATTACK CLIENT STARTED")
-    print(f"[*] Burst size      : {BURST_SIZE}")
-    print(f"[*] Burst interval  : {BURST_INTERVAL}s")
-    print(f"[*] Sleep between   : {SLEEP_BETWEEN}s")
+    print("[⚠️ TEMPORAL BURST ATTACK STARTED]")
+    print(f"[!] SM ID          : {sm_id}")
+    print(f"[!] REG ID         : {reg_ip}")
+    print(f"[!] SP Target      : {SP_IP}:{SP_PORT}")
+    print(f"[!] Burst size     : {BURST_SIZE}")
+    print(f"[!] Burst interval : {BURST_INTERVAL}s")
+    print(f"[!] Idle time      : {IDLE_TIME}s")
     print("-" * 50)
 
-    while True:
-        for _ in range(BURST_SIZE):
-            msg = {
-                "smId": sm_id,
-                "usage": round(random.uniform(0.1, 0.3), 2),
-                "proto": "udp",
-                "service": "-",
-                "timestamp": time.time()
-            }
-            sock.sendto(json.dumps(msg).encode(), (SP_IP, SP_PORT))
-            time.sleep(BURST_INTERVAL)
+    try:
+        while True:
+            # -------- BURST PHASE --------
+            for _ in range(BURST_SIZE):
+                payload = {
+                    "reg_id": reg_ip,
+                    "smId": sm_id,
+                    "usage": round(random.uniform(1.0, 3.0), 2),  # normal usage
+                    "proto": "udp",
+                    "service": "-",
+                    "timestamp": time.time()
+                }
+
+                sock.sendto(json.dumps(payload).encode(), (SP_IP, SP_PORT))
+                time.sleep(BURST_INTERVAL)
+
+            # -------- SILENT PHASE --------
+            time.sleep(IDLE_TIME)
+
+    except KeyboardInterrupt:
+        print("\n[!] TEMPORAL BURST ATTACK STOPPED")
+        sock.close()
 
 
-        time.sleep(SLEEP_BETWEEN)
-
+# ---------------- MAIN ----------------
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python3 recon_attack.py <smId>")
+        print("Usage: python3 burst_attack.py <smId>")
         sys.exit(1)
 
-    run_recon(sys.argv[1])
+    run_burst(sys.argv[1])

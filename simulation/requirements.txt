@@ -7,3 +7,4 @@ joblib
 flask
 fastapi
 uvicorn
+liboqs-python

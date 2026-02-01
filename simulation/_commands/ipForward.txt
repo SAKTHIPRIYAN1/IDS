@@ -7,3 +7,17 @@ reg1 ip route add 10.0.3.0/24 via 10.0.99.2
 reg2 ip route add 10.0.3.0/24 via 10.0.98.2
 sp ip route add 10.0.1.0/24 via 10.0.99.1
 sp ip route add 10.0.2.0/24 via 10.0.98.1
+
+
+
+
+
+
+
+
+
+
+
+# this is for that...
+reg1 ip route add 10.0.3.0/24 via 10.0.99.2
+reg2 ip route add 10.0.3.0/24 via 10.0.98.2

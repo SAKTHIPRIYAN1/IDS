@@ -9,6 +9,10 @@ import time
 import random
 import sys
 
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from crypto.sm import SmartMeter
+
 SP_IP = "10.0.3.1"
 SP_PORT = 9999
 
@@ -19,12 +23,38 @@ def run_sender(sm_id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     print(f"[*] Smart Meter {sm_id} started")
-    print(f"[*] Sending to SP {SP_IP}:{SP_PORT}")
+
+    # PQC Auth
+    sm = SmartMeter(sm_id)
+    sm.enroll()
+    sm.authenticate()
+    auth_payload = sm.build_auth_payload(b"AUTH_REQUEST")
+
+    # Determine REG IP
+    sm_num = int(sm_id[2:])
+    reg_ip = "10.0.1.254" if sm_num <= 5 else "10.0.2.254"
+    reg_port = 9998
+
+    # Send auth to REG via TCP (auth payload is large)
+    try:
+        auth_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        auth_sock.connect((reg_ip, reg_port))
+        auth_sock.sendall(json.dumps(auth_payload).encode())
+        auth_sock.close()
+        print(f"[SM → REG] Auth sent to {reg_ip}:{reg_port}")
+    except Exception as e:
+        print(f"[SM] Auth error: {e}")
+
+    # Create UDP socket for usage messages
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    print(f"[*] Sending usage to SP {SP_IP}:{SP_PORT}")
     print("Press CTRL+C to stop\n")
 
     try:
         while True:
             payload = {
+                "reg_id": reg_ip,
                 "smId": sm_id,
                 "usage": round(random.uniform(0.5, 5.0), 2),
                 "proto": "udp",
