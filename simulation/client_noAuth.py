@@ -20,27 +20,6 @@ SEND_INTERVAL = 3
 def run_sender(sm_id):
     print(f"[*] Smart Meter {sm_id} starting")
 
-    # ---------- SM AUTH ----------
-    sm = SmartMeter(sm_id)
-    sm.enroll()
-    sm.authenticate()
-
-    auth_payload = sm.build_auth_payload(b"AUTH_REQUEST")
-
-    sm_num = int(sm_id[2:])
-    reg_ip = "10.0.1.254" if sm_num <= 5 else "10.0.2.254"
-
-    # Send auth to REG via TCP
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((reg_ip, REG_PORT))
-        sock.sendall(json.dumps(auth_payload).encode())
-        sock.close()
-        print(f"[SM → REG] Auth sent to {reg_ip}:{REG_PORT}")
-    except Exception as e:
-        print(f"[SM] Auth failed: {e}")
-        return
-
     # ---------- USAGE DATA ----------
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     print(f"[*] Sending usage to SP {SP_IP}:{SP_PORT}")

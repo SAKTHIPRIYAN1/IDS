@@ -6,7 +6,7 @@ import os
 
 # ---- CONFIGURATION ----
 # Thresholds must match what you tuned in the notebook
-SIGNATURE_THRESHOLD = 0.6   # RF Threshold
+SIGNATURE_THRESHOLD = 0.65   # RF Threshold
 ANOMALY_THRESHOLD   = -0.05 # IF Threshold
 
 print("[IDS] Loading models and pipeline components...")
@@ -57,6 +57,7 @@ def preprocess(raw):
     # 4. Apply Standard Scaler (Transform ONLY)
     X_scaled = scaler.transform(X_vt)
     
+    print("Raw Data:", raw)
     # Return the scaled array (for prediction)
     return X_scaled
 
@@ -169,17 +170,17 @@ def check_hybrid_intrusion_live(raw_row):
     if_score = if_model.decision_function(X_scaled)[0]
     
     # 4. Check Logic
-    
+    print("i think  it is Rf:", rf_prob )
     # Priority 1: Known Signature (RF)
     if rf_prob >= SIGNATURE_THRESHOLD:
         exp, plot = explain_decision(X_scaled, True, rf_prob * 100, detection_type="RF/IDS")
         return True, "Signature matched", rf_prob, exp, plot
-
+    print("No rf")
     # Priority 2: Anomaly (IF)
     if if_score <= ANOMALY_THRESHOLD:
         # Pass raw score for context
         exp, plot = explain_decision(X_scaled, True, if_score, detection_type="IF/IDS") 
         return True, "Anomaly detected", if_score, exp, plot
-
+    print("NO if")
     # Default: Normal
-    return False, "Normal traffic pattern", None, None, None
+    return False, "Normal traffic pattern", 0.0, None, None

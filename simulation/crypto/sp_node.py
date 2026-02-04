@@ -1,99 +1,143 @@
+# sp_node.py
 import oqs
 import hashlib
+import hmac
+import json
+import os
 import time
+
+
+AUTH_DB_FILE = "auth_devices.json"
 
 
 class SPNode:
     def __init__(self, sp_id: str):
         self.sp_id = sp_id
 
-    # -----------------------------
-    # Step 1: Verify SM again (optional but recommended)
-    # -----------------------------
-    def verify_sm_signature(
-        self,
-        sm_pk: bytes,
-        signature: bytes,
-        message: bytes
-    ) -> bool:
-        with oqs.Signature("ML-DSA-65") as verifier:
-            return verifier.verify(message, signature, sm_pk)
+        # Generate SP Kyber keypair (one-time)
+        with oqs.KeyEncapsulation("ML-KEM-768") as kem:
+            self.kyber_pk = kem.generate_keypair()
+            self.kyber_sk = kem.export_secret_key()
 
-    # -----------------------------
-    # Step 2: Kyber decapsulation
-    # -----------------------------
-    def decapsulate_from_reg(
-        self,
-        kyber_ct: bytes,
-        sm_kyber_sk: bytes
-    ) -> bytes:
-        """
-        In real system:
-        - SM would decaps
-        - SP derives session key from forwarded secrets
+        print("[SP] Kyber keypair generated")
 
-        For simulation:
-        - We allow SP to decaps (simplified)
-        """
-        with oqs.KeyEncapsulation("Kyber768", sm_kyber_sk) as kem:
-            return kem.decap_secret(kyber_ct)
+        # Load authenticated devices
+        self.auth_log = self.load_auth_log()
 
-    # -----------------------------
-    # Step 3: Session key derivation
-    # -----------------------------
-    def derive_session_key(
-        self,
-        shared_secret: bytes,
-        sm_id: str,
-        reg_id: str,
-        timestamp: int
-    ) -> bytes:
+    # --------------------------------------------------
+    # Load auth log from JSON
+    # --------------------------------------------------
+    def load_auth_log(self):
+        if os.path.exists(AUTH_DB_FILE):
+            with open(AUTH_DB_FILE, "r") as f:
+                print("[SP] Loaded existing auth database")
+                return json.load(f)
+        print("[SP] No existing auth database")
+        return []
+
+    # --------------------------------------------------
+    # Save auth log to JSON
+    # --------------------------------------------------
+    def save_auth_log(self):
+        with open(AUTH_DB_FILE, "w") as f:
+            json.dump(self.auth_log, f, indent=4)
+        print("[SP] Auth database saved")
+
+    # --------------------------------------------------
+    # Step 1: Verify REG authentication (HMAC proof)
+    # --------------------------------------------------
+    def verify_reg(self, sk_puf_hash: bytes, m2: bytes, sigma_reg: bytes) -> bool:
+        print("[SP][DEBUG] Verifying REG HMAC")
+        print(f"[SP][DEBUG] m2              = {m2.hex()}")
+        print(f"[SP][DEBUG] sk_puf_hash     = {sk_puf_hash.hex()}")
+        print(f"[SP][DEBUG] sigma_reg (rx)  = {sigma_reg.hex()}")
+
+        expected = hmac.new(
+            sk_puf_hash,
+            m2,
+            hashlib.sha256
+        ).digest()
+
+        print(f"[SP][DEBUG] sigma_reg (exp) = {expected.hex()}")
+
+        result = hmac.compare_digest(expected, sigma_reg)
+        print(f"[SP][DEBUG] HMAC match = {result}")
+
+        return result
+
+    # --------------------------------------------------
+    # Step 2: Kyber decapsulation (REG → SP)
+    # --------------------------------------------------
+    def decapsulate_from_reg(self, kyber_ct: bytes) -> bytes:
+        print("[SP][DEBUG] Starting Kyber decapsulation")
+        with oqs.KeyEncapsulation("ML-KEM-768", self.kyber_sk) as kem:
+            shared_secret = kem.decap_secret(kyber_ct)
+
+        print(f"[SP][DEBUG] K_REG = {shared_secret.hex()}")
+        return shared_secret
+
+    # --------------------------------------------------
+    # Step 3: Derive session key
+    # --------------------------------------------------
+    def derive_session_key(self, k_reg: bytes, sm_id: str, reg_id: str, timestamp: int) -> bytes:
         material = (
-            shared_secret +
+            k_reg +
             sm_id.encode() +
             reg_id.encode() +
             str(timestamp).encode()
         )
-        return hashlib.sha3_256(material).digest()
 
-    # -----------------------------
-    # Step 4: Handle REG message
-    # -----------------------------
-    def handle_reg_message(
-        self,
-        reg_payload: dict,
-        message: bytes,
-        sm_kyber_sk: bytes
-    ) -> dict:
-        print("[SP] Received auth from REG")
+        session_key = hashlib.sha3_256(material).digest()
+        print(f"[SP][DEBUG] Session key = {session_key.hex()}")
+        return session_key
 
-        valid = self.verify_sm_signature(
-            reg_payload["sm_dilithium_pk"],
-            reg_payload["signature"],
-            message
-        )
+    # --------------------------------------------------
+    # Step 4: Handle REG → SP authentication message
+    # --------------------------------------------------
+    def handle_reg_message(self, reg_payload: dict) -> dict:
+        print("\n[SP] Received authentication from REG")
+        print("[SP][DEBUG] Full REG payload:")
+        print(json.dumps(reg_payload, indent=4))
 
-        if not valid:
-            raise Exception("[SP] SM signature invalid")
+        sm_id = reg_payload["sm_id"]
+        reg_id = reg_payload["reg_id"]
+        timestamp = reg_payload["timestamp"]
 
-        ss = self.decapsulate_from_reg(
-            reg_payload["kyber_ct"],
-            sm_kyber_sk
-        )
+        m2 = bytes.fromhex(reg_payload["m2"])
+        sigma_reg = bytes.fromhex(reg_payload["sigma_reg"])
+        kyber_ct = bytes.fromhex(reg_payload["kyber_ct_reg"])
+        sk_puf_hash = bytes.fromhex(reg_payload["sk_puf_hash"])
 
+        # ---- Verify REG ----
+        if not self.verify_reg(sk_puf_hash, m2, sigma_reg):
+            print("[SP][ERROR] REG authentication FAILED")
+            raise Exception("[SP] REG authentication FAILED")
+
+        print("[SP] REG authentication SUCCESS")
+
+        # ---- Kyber decapsulation ----
+        k_reg = self.decapsulate_from_reg(kyber_ct)
+
+        # ---- Session key derivation ----
         session_key = self.derive_session_key(
-            ss,
-            reg_payload["sm_id"],
-            reg_payload["reg_id"],
-            reg_payload["timestamp"]
+            k_reg,
+            sm_id,
+            reg_id,
+            timestamp
         )
 
-        print("[SP] Session key derived")
-
-        return {
-            "sm_id": reg_payload["sm_id"],
-            "reg_id": reg_payload["reg_id"],
-            "timestamp": reg_payload["timestamp"],
+        # ---- Log authenticated SM ----
+        log_entry = {
+            "sm_id": sm_id,
+            "reg_id": reg_id,
+            "timestamp": timestamp,
             "session_key_hash": hashlib.sha256(session_key).hexdigest(),
             "status": "AUTH_SUCCESS"
         }
+
+        self.auth_log.append(log_entry)
+        self.save_auth_log()
+
+        print(f"[SP] SM {sm_id} authenticated via REG {reg_id}\n")
+
+        return log_entry

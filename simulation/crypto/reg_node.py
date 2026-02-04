@@ -1,6 +1,8 @@
+# reg_node.py
 import oqs
 import hashlib
-import os
+import hmac
+import secrets
 import time
 
 
@@ -12,14 +14,6 @@ class REGNode:
     # Step 1: Verify SM authentication request
     # --------------------------------------------------
     def verify_sm(self, auth_payload: dict, message: bytes) -> bool:
-        """
-        auth_payload contains:
-        - device_id
-        - dilithium_pk (hex string)
-        - signature (hex string)
-        """
-
-        # Convert hex strings back to bytes
         dil_pk = bytes.fromhex(auth_payload["dilithium_pk"])
         signature = bytes.fromhex(auth_payload["signature"])
 
@@ -30,78 +24,77 @@ class REGNode:
                 dil_pk
             )
 
-        if not is_valid:
-            print("[REG] ❌ SM signature verification FAILED")
+        if is_valid:
+            print("[REG] SM authentication SUCCESS")
         else:
-            print("[REG] ✅ SM signature verified")
+            print("[REG] SM authentication FAILED")
 
         return is_valid
 
     # --------------------------------------------------
-    # Step 2: Kyber encapsulation for SM
+    # Step 2: Derive REG PUF secret
+    # SK_PUF = H(PUF(challenge) || r_REG)
     # --------------------------------------------------
-    def encapsulate_for_sm(self, sm_kyber_pk_hex: str):
-        """
-        Perform Kyber encapsulation using SM public key (hex string)
-        """
-        # Convert hex string back to bytes
-        sm_kyber_pk = bytes.fromhex(sm_kyber_pk_hex)
+    def derive_sk_puf(self, challenge: bytes):
+        # Simulated PUF response (acceptable for thesis)
+        puf_resp = hashlib.sha256(
+            (self.reg_id + challenge.hex()).encode()
+        ).digest()
+
+        r_reg = secrets.token_bytes(16)
+
+        sk_puf = hashlib.sha256(puf_resp + r_reg).digest()
+
+        print("[REG] SK_PUF derived")
+        return sk_puf, r_reg
+
+    # --------------------------------------------------
+    # Step 3: Sign M2 using SK_PUF (HMAC)
+    # --------------------------------------------------
+    def sign_m2(self, sk_puf: bytes, m2: bytes):
+        sk_puf_hash = hashlib.sha256(sk_puf).digest()
+
+        sigma_reg = hmac.new(
+            sk_puf_hash,
+            m2,
+            hashlib.sha256
+        ).digest()
+
+        print("[REG] M2 signed using HASHED SK_PUF")
+        return sigma_reg, sk_puf_hash
+
+
+    # --------------------------------------------------
+    # Step 4: Kyber encapsulation for SP
+    # C_REG, K_REG = Encap(PK_SP)
+    # --------------------------------------------------
+    def encapsulate_for_sp(self, sp_kyber_pk_hex: str):
+        sp_pk = bytes.fromhex(sp_kyber_pk_hex)
 
         with oqs.KeyEncapsulation("ML-KEM-768") as kem:
-            ciphertext, shared_secret = kem.encap_secret(sm_kyber_pk)
+            ct_reg, k_reg = kem.encap_secret(sp_pk)
 
-        print("[REG] ML-KEM encapsulation completed")
-
-        return ciphertext, shared_secret
+        print("[REG] Kyber encapsulation for SP complete")
+        return ct_reg, k_reg
 
     # --------------------------------------------------
-    # Step 3: Build message for SP (next hop)
+    # Step 5: Build REG → SP message
     # --------------------------------------------------
-    def build_forward_message(
-        self,
-        auth_payload: dict,
-        kyber_ct: bytes
-    ):
-        """
-        REG → SP payload (hex-encode bytes for JSON)
-        """
+        # reg_node.py
+    def build_message_to_sp(
+    self,
+    sm_id: str,
+    m2: bytes,
+    sigma_reg: bytes,
+    ct_reg: bytes,
+    sk_puf_hash: bytes
+):
         return {
-            "sm_id": auth_payload["device_id"],
+            "sm_id": sm_id,
             "reg_id": self.reg_id,
             "timestamp": int(time.time()),
-            "kyber_ct": kyber_ct.hex(),
-            "sm_dilithium_pk": auth_payload["dilithium_pk"],
-            "sm_kyber_pk": auth_payload["kyber_pk"],
-            "signature": auth_payload["signature"]
+            "m2": m2.hex(),
+            "sigma_reg": sigma_reg.hex(),
+            "kyber_ct_reg": ct_reg.hex(),
+            "sk_puf_hash": sk_puf_hash.hex()
         }
-
-if __name__ == "__main__":
-    from sm import SmartMeter
-
-    # Initialize SM & REG
-    sm = SmartMeter("SM_001")
-    reg = REGNode("REG_01")
-
-    # Enrollment (one-time)
-    sm.enroll()
-
-    # SM authentication
-    sm.authenticate()
-    message = b"AUTH_REQUEST"
-    auth_payload = sm.build_auth_payload(message)
-
-    # REG verifies SM
-    if reg.verify_sm(auth_payload, message):
-        kyber_ct, ss_reg_sm = reg.encapsulate_for_sm(
-            auth_payload["kyber_pk"]
-        )
-
-        print("[REG] Shared secret length:", len(ss_reg_sm))
-
-        forward_msg = reg.build_forward_message(
-            auth_payload,
-            kyber_ct
-        )
-
-        print("\n[REG] Forwarding to SP:")
-        print(forward_msg.keys())

@@ -1,31 +1,39 @@
 # server.py
-# SERVICE PROVIDER (REG + SM -> IDS -> SO)
-# PQC-enabled auth from REG, usage from SM, IDS checks, forward to SO
+# SERVICE PROVIDER (SP)
+# REG -> SP : TCP authentication
+# SM  -> SP : UDP usage
+# SP  -> SO : UDP report
+# IDS + Replay Detection (timestamp + nonce)
 
 import socket
 import json
 import time
-import datetime
 import threading
-from collections import defaultdict
+from collections import defaultdict, deque
 
+from crypto.sp_node import SPNode
 from ids_model import check_hybrid_intrusion_live
 
 # ---------------- CONFIG ----------------
-LISTEN_PORT_USAGE = 9999      # UDP: SM usage messages
-LISTEN_PORT_AUTH = 10999      # TCP: REG auth messages
-SO_IP = "10.0.3.2"
+LISTEN_PORT_USAGE = 9999
+LISTEN_PORT_AUTH  = 10999
+
+SO_IP   = "10.0.3.2"
 SO_PORT = 9999
 
 WINDOW_SIZE = 1.0
 
-# ---------------- LOGGER ----------------
-def log(level, msg):
-    ts = time.strftime("%H:%M:%S")
-    print(f"[{ts}] [{level}] {msg}")
+CLOCK_SKEW_TOLERANCE = 3.0      # seconds (SM ↔ SP clock drift)
+NONCE_CACHE_SIZE    = 20        # per SM
+REPLAY_SCORE        = 0.99
 
-# ---------------- AUTH STATE ----------------
-authenticated_devices = {}  # {sm_id: auth_data}
+# ---------------- INIT ----------------
+sp = SPNode("SP1")
+authenticated_sms = {}   # sm_id → auth log
+
+# ---------------- REPLAY STATE ----------------
+# sm_id → deque of (nonce, ts_bucket)
+replay_cache = defaultdict(lambda: deque(maxlen=NONCE_CACHE_SIZE))
 
 # ---------------- FLOW STATE ----------------
 flows = defaultdict(lambda: {
@@ -35,11 +43,6 @@ flows = defaultdict(lambda: {
     "sbytes": 0,
     "jitters": []
 })
-
-# ---------------- REPLAY STATE ----------------
-replay_history = defaultdict(list)
-REPLAY_WINDOW = 6
-REPLAY_THRESHOLD = 5
 
 # ---------------- FLOW UPDATE ----------------
 def update_flow(sm_id, pkt_size):
@@ -62,9 +65,9 @@ def update_flow(sm_id, pkt_size):
     dur = now - f["start_time"]
 
     if dur >= WINDOW_SIZE:
-        rate = f["spkts"] / dur if dur > 0 else 0
+        rate  = f["spkts"] / dur if dur > 0 else 0
         sload = f["sbytes"] / dur if dur > 0 else 0
-        sjit = abs(f["jitters"][-1] - f["jitters"][-2]) if len(f["jitters"]) >= 2 else 0.0
+        sjit  = abs(f["jitters"][-1] - f["jitters"][-2]) if len(f["jitters"]) >= 2 else 0.0
 
         features = {
             "dur": dur,
@@ -92,153 +95,117 @@ def update_flow(sm_id, pkt_size):
 
     return None
 
-# ---------------- AUTH HANDLER (TCP) ----------------
-def handle_auth_from_reg():
-    tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    tcp_sock.bind(("0.0.0.0", LISTEN_PORT_AUTH))
-    tcp_sock.listen(5)
-
-    log("LISTEN", f"Auth listener active on TCP {LISTEN_PORT_AUTH}")
-
-    try:
-        while True:
-            conn, addr = tcp_sock.accept()
-            log("RECV", f"Auth connection from REG {addr}")
-
-            try:
-                data = conn.recv(16384)
-                if not data:
-                    continue
-
-                auth_msg = json.loads(data.decode())
-                sm_id = auth_msg.get("sm_id")
-
-                authenticated_devices[sm_id] = {
-                    "timestamp": time.time(),
-                    "kyber_ct": auth_msg.get("kyber_ct"),
-                    "signature": auth_msg.get("signature"),
-                    "reg_id": auth_msg.get("reg_id")
-                }
-
-                log("AUTH", f"SM {sm_id} authenticated via REG {auth_msg.get('reg_id')}")
-
-            except Exception as e:
-                log("ERROR", f"Auth handler error: {e}")
-            finally:
-                conn.close()
-
-    except KeyboardInterrupt:
-        log("STOP", "Auth listener stopped")
-        tcp_sock.close()
-
 # ---------------- REPLAY DETECTION ----------------
-def detect_replay(sm_id, usage):
-    history = replay_history[sm_id]
-    history.append(usage)
+def detect_replay(sm_id, timestamp, nonce):
+    now = time.time()
 
-    if len(history) > REPLAY_WINDOW:
-        history.pop(0)
+    # ---- freshness check (clock skew tolerant) ----
+    if abs(now - timestamp) > CLOCK_SKEW_TOLERANCE:
+        return True, "Stale timestamp"
 
-    return len(history) >= REPLAY_THRESHOLD and len(set(history)) == 1
+    ts_bucket = int(timestamp)
+    key = (nonce, ts_bucket)
 
-# ---------------- MAIN SERVER ----------------
+    # ---- nonce reuse ----
+    if key in replay_cache[sm_id]:
+        return True, "Nonce replay detected"
+
+    replay_cache[sm_id].append(key)
+    return False, None
+
+# ---------------- AUTH HANDLER ----------------
+def handle_auth_from_reg():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("0.0.0.0", LISTEN_PORT_AUTH))
+    sock.listen(5)
+
+    print("[SP] Auth listener active")
+
+    while True:
+        conn, _ = sock.accept()
+        try:
+            payload = json.loads(conn.recv(16384).decode())
+            log_entry = sp.handle_reg_message(payload)
+
+            authenticated_sms[log_entry["sm_id"]] = log_entry
+            print(f"[SP] AUTH SUCCESS → {log_entry['sm_id']}")
+
+        except Exception as e:
+            print("[SP AUTH ERROR]", e)
+        finally:
+            conn.close()
+
+# ---------------- MAIN ----------------
 def start_server():
-    log("BOOT", "SERVICE PROVIDER starting")
-
-    auth_thread = threading.Thread(
-        target=handle_auth_from_reg,
-        daemon=True
-    )
-    auth_thread.start()
+    threading.Thread(target=handle_auth_from_reg, daemon=True).start()
 
     recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sock.bind(("0.0.0.0", LISTEN_PORT_USAGE))
 
     send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    log("LISTEN", f"UDP usage listener on port {LISTEN_PORT_USAGE}")
-    log("FORWARD", f"Reports forwarded to SO {SO_IP}:{SO_PORT}")
-    print("-" * 60)
+    print("[SP] Usage listener active")
 
     while True:
         try:
-            data, addr = recv_sock.recvfrom(8192)
+            data, _ = recv_sock.recvfrom(8192)
             payload = json.loads(data.decode())
 
-            sm_id = payload.get("smId") or payload.get("sm_id", "unknown")
-            pkt_size = len(data)
+            sm_id     = payload.get("smId")
+            usage     = payload.get("usage", 0)
+            timestamp = payload.get("timestamp", 0)
+            nonce     = payload.get("nonce")
 
-            log("RECV", f"Usage packet from {sm_id} ({addr[0]})")
+            if sm_id not in authenticated_sms:
+                print(f"[SP WARNING] Unauthenticated SM {sm_id}")
+                print(f"[SP ACTION] Traffic ignored (fail-closed)")
 
-            # Optional auth visibility
-            
-            if sm_id not in authenticated_devices:
-                log("WARN", f"Unauthenticated SM traffic detected: {sm_id}")
-                # do the isolation and termination process here
-                
-                pass
+                continue
+    
+    
 
-            features = update_flow(sm_id, pkt_size)
+            # ---------- REPLAY DETECTION ----------
+            replay, reason = detect_replay(sm_id, timestamp, nonce)
+            if replay:
+                alert = {
+                    "smId": sm_id,
+                    "status": "Unstable",
+                    "type": "ALERT",
+                    "usage":usage,
+                    "reason": reason,
+                    "score": REPLAY_SCORE,
+                    "xai": f"Replay detected via {reason}"
+                }
+
+                send_sock.sendto(json.dumps(alert).encode(), (SO_IP, SO_PORT))
+                print(f"[REPLAY] {sm_id} → {reason}")
+                continue
+
+            # ---------- IDS ----------
+            features = update_flow(sm_id, len(data))
             if not features:
                 continue
 
-            log("FLOW", f"Window closed for {sm_id}")
-            log("FLOW", f"Features extracted: {features}")
+            isAttack, reason, score, xai, _ = check_hybrid_intrusion_live(features)
 
-            # ---------- Replay IDS ----------
-            if detect_replay(sm_id, payload.get("usage", 0)):
-                log("IDS", f"Replay attack detected for {sm_id}")
+            final_score = max(score, REPLAY_SCORE if replay else 0)
 
-                report = {
-                    "type": "ALERT",
-                    "smId": sm_id,
-                    "reason": "Rule-based Replay Detection",
-                    "xai": "Repeated identical usage values across windows",
-                    "score": 1.0,
-                    "sourceIp": addr[0],
-                    "usage": payload.get("usage", 0),
-                    "status": "Unstable"
-                }
+            report = {
+                "smId": sm_id,
+                "usage": usage,
+                "status": "Unstable" if isAttack else "Stable",
+                "reason": reason,
+                "score": float(final_score),
+                "xai": xai,
+                "type": "ALERT" if isAttack else "NORMAL"
+            }
 
-            else:
-                # ---------- ML IDS ----------
-                isAttack, model_reason, score, xai_exp, _ = \
-                    check_hybrid_intrusion_live(features)
-
-                if isAttack:
-                    log("ALERT", f"ML attack detected for {sm_id} | {model_reason}")
-
-                    report = {
-                        "type": "ALERT",
-                        "smId": sm_id,
-                        "reason": model_reason,
-                        "xai": xai_exp,
-                        "score": float(score),
-                        "sourceIp": addr[0],
-                        "usage": payload.get("usage", 0),
-                        "status": "Unstable"
-                    }
-                else:
-                    log("STATUS", f"Traffic normal for {sm_id}")
-
-                    report = {
-                        "type": "STATUS",
-                        "smId": sm_id,
-                        "usage": payload.get("usage", 0),
-                        "status": "Stable",
-                        "sourceIp": addr[0]
-                    }
-
-            send_sock.sendto(
-                json.dumps(report).encode(),
-                (SO_IP, SO_PORT)
-            )
-
-            log("FORWARD", f"Report sent to SO for {sm_id}")
+            send_sock.sendto(json.dumps(report).encode(), (SO_IP, SO_PORT))
+            print(f"[SP → SO] Report sent for {sm_id}")
 
         except Exception as e:
-            log("ERROR", str(e))
+            print("[SP ERROR]", e)
 
 # ---------------- ENTRY ----------------
 if __name__ == "__main__":

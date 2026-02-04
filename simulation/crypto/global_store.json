@@ -1,16 +1,16 @@
 {
     "devices": {
         "sm6": {
-            "challenge": "15f642e59241779db51d88179e3976a015815a5ac0cdd16238f26ba98c5478ec",
-            "helper_data": "ff25c8b4437fdd5df9de3fb4105dbb7c49dbe76a0f373b541d4edbb67794e9bc",
-            "puf_secret": "b9a6029df220fa67acca4e7b87192d37b6dbcab613848283e100fd8c12e72d18",
-            "puf_response": "2a17ca73f5a473721ec186957f623c02f44d4bc6c8b57d93755590c57d6519da"
+            "challenge": "dc99dcd98c8db2659d2b3455d6c4191fe0eabbf8a80aaa2a90fac74ef6c44b41",
+            "helper_data": "58afc13578df74d83a26135174dfc24989716c8ea2a958cc755abb3c74c046a4",
+            "puf_secret": "710ef7fdc7cbd173a25d9862e121026a8e1ae2e7c45c8bc04b379a005c4171ac",
+            "puf_response": "8625d754ecbf8062ef920517ff807ba72a0e4cf89f1c4c8a1e8f2af412e8fff5"
         },
         "sm1": {
-            "challenge": "7a7b7ccab2ddd5e0c0a27532bc67ba6bdadf4f43a813ec3b3ca4403ad751569a",
-            "helper_data": "ccdc227f15df0700b1ade81be19a16d1ac486e756edcb2f09647b21ca363b2e3",
-            "puf_secret": "1bd325abec65767cb6110d0c4ae5ff827d3a0cac24dd457c3317c38e57b4e914",
-            "puf_response": "8db5eae76520d788634e6d94b3b2e158ac6ac49f18f768c5cc9284af3c3bdd89"
+            "challenge": "771a011f24dbb7485b8c737bec700d2d130f5654e4c4e0d12e6be1d944658339",
+            "helper_data": "2849542b97d1b9517dda654af27f2e9232176ce177051b7650692f715fac380d",
+            "puf_secret": "9ea9cbc2e976e4d0493eec399411749a86b6664a0d74a48dd6959a4690c543cf",
+            "puf_response": "24ba7e2a1be55c98a4a6dd1b66fa96ad8e29a03a84f324c8e15e0ac62f564ba8"
         }
     },
     "sessions": {}
