@@ -1,16 +1,22 @@
 {
     "devices": {
         "sm6": {
-            "challenge": "dc99dcd98c8db2659d2b3455d6c4191fe0eabbf8a80aaa2a90fac74ef6c44b41",
-            "helper_data": "58afc13578df74d83a26135174dfc24989716c8ea2a958cc755abb3c74c046a4",
-            "puf_secret": "710ef7fdc7cbd173a25d9862e121026a8e1ae2e7c45c8bc04b379a005c4171ac",
-            "puf_response": "8625d754ecbf8062ef920517ff807ba72a0e4cf89f1c4c8a1e8f2af412e8fff5"
+            "challenge": "e66a306e3c9ffe1cea902d1c1b2792919b74041a23ed1678fd51a10352505513",
+            "helper_data": "0719d042a9052ccb88ee961b905a3e57a5a094a61368b51eb3ec11def8a43d02",
+            "puf_secret": "71a3c65534efb9b257244fc5c235504d466f030c65aa7fb49dccd8ca657aa46a",
+            "puf_response": "b0021636730d78974dd2564611a111bc7209c2ad9720c52f89312f065bb5dcbc"
         },
         "sm1": {
-            "challenge": "771a011f24dbb7485b8c737bec700d2d130f5654e4c4e0d12e6be1d944658339",
-            "helper_data": "2849542b97d1b9517dda654af27f2e9232176ce177051b7650692f715fac380d",
-            "puf_secret": "9ea9cbc2e976e4d0493eec399411749a86b6664a0d74a48dd6959a4690c543cf",
-            "puf_response": "24ba7e2a1be55c98a4a6dd1b66fa96ad8e29a03a84f324c8e15e0ac62f564ba8"
+            "challenge": "500548be04359a77c60654ef72822fa192d617a184235b1619950334bbd201b1",
+            "helper_data": "76af51ececc4d906502f9dc1500cbf7cf71fdd615bb0ec735aca7a323b463a7c",
+            "puf_secret": "8fc1f53d7d51d9faf2eb64f86c2e34715400c63c06bd0de5629f87047c12d249",
+            "puf_response": "308b166c74f560ffb8c2842d73e993e4e98a46507dd846776064b5250490e2b5"
+        },
+        "sm2": {
+            "challenge": "acd8026643f2d65cb7eddae5cf7c2b07916eba0903fc19be38506baaf5de077d",
+            "helper_data": "f5fd403036faf9a8e9476bb606a7e381e3da0d68396a7712dd20fd7292a4c33e",
+            "puf_secret": "7b2153cb3d3061dd4e4169255bf5dcab288c7fde6b2b390a4f51144c67569a7a",
+            "puf_response": "4149ea768e4302da94a4cfec8f8726dd563c3ce5d9684b69bb14a7332a825c7e"
         }
     },
     "sessions": {}

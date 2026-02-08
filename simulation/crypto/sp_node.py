@@ -90,6 +90,7 @@ class SPNode:
         session_key = hashlib.sha3_256(material).digest()
         print(f"[SP][DEBUG] Session key = {session_key.hex()}")
         return session_key
+    
 
     # --------------------------------------------------
     # Step 4: Handle REG → SP authentication message
@@ -102,6 +103,7 @@ class SPNode:
         sm_id = reg_payload["sm_id"]
         reg_id = reg_payload["reg_id"]
         timestamp = reg_payload["timestamp"]
+        reg_ip = reg_payload["reg_ip"]
 
         m2 = bytes.fromhex(reg_payload["m2"])
         sigma_reg = bytes.fromhex(reg_payload["sigma_reg"])
@@ -130,6 +132,7 @@ class SPNode:
         log_entry = {
             "sm_id": sm_id,
             "reg_id": reg_id,
+            "reg_ip":reg_ip,
             "timestamp": timestamp,
             "session_key_hash": hashlib.sha256(session_key).hexdigest(),
             "status": "AUTH_SUCCESS"

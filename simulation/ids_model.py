@@ -170,12 +170,12 @@ def check_hybrid_intrusion_live(raw_row):
     if_score = if_model.decision_function(X_scaled)[0]
     
     # 4. Check Logic
-    print("i think  it is Rf:", rf_prob )
+    # print("i think  it is Rf:", rf_prob )
     # Priority 1: Known Signature (RF)
     if rf_prob >= SIGNATURE_THRESHOLD:
         exp, plot = explain_decision(X_scaled, True, rf_prob * 100, detection_type="RF/IDS")
         return True, "Signature matched", rf_prob, exp, plot
-    print("No rf")
+    # print("No rf")
     # Priority 2: Anomaly (IF)
     if if_score <= ANOMALY_THRESHOLD:
         # Pass raw score for context

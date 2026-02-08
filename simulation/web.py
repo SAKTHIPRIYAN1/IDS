@@ -7,6 +7,10 @@ UDP_PORT = 8888
 WEB_PORT = 8080
 INACTIVE_TIMEOUT = 10
 
+SO_CONTROL_IP = "172.17.250.2"   # SO container IP (veth)
+SO_CONTROL_PORT = 8899
+
+
 app = Flask(__name__)
 
 # --- DATA STORES ---
@@ -15,6 +19,25 @@ active_alerts = {}
 cleared_alerts = set()
 last_seen = {}          
 is_expanded = []  # List to track expanded states on server side
+
+
+def send_control(action, smId, reason):
+    msg = {
+        "action": action,
+        "smId": smId,
+        "reason": reason,
+        "timestamp": time.time()
+    }
+    print(f"[WEB] Sending control command: {msg}")  # Debug print
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.sendto(json.dumps(msg).encode(), (SO_CONTROL_IP, SO_CONTROL_PORT))
+        print(f"[WEB] Control command sent to SO at {SO_CONTROL_IP}:{SO_CONTROL_PORT}")
+    except Exception as e:
+        print(f"[WEB ERROR] Failed to send control command: {e}")
+    finally:
+        sock.close()
+
 
 # --- UDP LISTENER (BACKEND) ---
 def udp_listener():
@@ -266,6 +289,8 @@ function toggleXaiExp(id, smId) {
         <b>XAI Analysis:</b><br>
         {{ a.Xai_exp | safe }}
     </div>
+    
+
 </div>
 {% endfor %}
 </div>
@@ -296,7 +321,7 @@ function toggleXaiExp(id, smId) {
 <div class="scroll">
 <table>
 <tr>
-<th>Time</th><th>Type</th><th>SM</th><th>IP</th>
+<th>Time</th><th>Type</th><th>SM</th>
 <th>Usage</th><th>Status</th><th>Reason</th>
 </tr>
 {% for e in data %}
@@ -304,7 +329,6 @@ function toggleXaiExp(id, smId) {
 <td>{{ e.time }}</td>
 <td>{{ e.type }}</td>
 <td>{{ e.smId }}</td>
-<td>{{ e.sourceIp }}</td>
 <td>{{ e.usage }}</td>
 <td>{{ e.status }}</td>
 <td>{{ e.reason }}</td>
@@ -360,12 +384,20 @@ def clear(sm):
     cleared_alerts.add(sm)
     return redirect(url_for("index"))
 
+
+
+@app.route("/action/<action>/<sm>")
+def take_action(action, sm):
+    alert = active_alerts.get(sm)
+    reason = alert["reason"] if alert else "Unknown"
+
+    send_control(action.upper(), sm, reason)
+    return redirect(url_for("index"))
+
+# ---------------- MAIN ----------------
 if __name__ == "__main__":
-    t = threading.Thread(target=udp_listener, daemon=True)
-    t.start()
-    
-    t2 = threading.Thread(target=cleanup_inactive, daemon=True)
-    t2.start()
-    
-    print(f"[*] Dashboard running at http://0.0.0.0:{WEB_PORT}")
+    threading.Thread(target=udp_listener, daemon=True).start()
+    threading.Thread(target=cleanup_inactive, daemon=True).start()
+
+    print(f"[*] Web running on port {WEB_PORT}")
     app.run(host="0.0.0.0", port=WEB_PORT, debug=False)

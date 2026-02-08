@@ -87,7 +87,9 @@ class REGNode:
     m2: bytes,
     sigma_reg: bytes,
     ct_reg: bytes,
-    sk_puf_hash: bytes
+    sk_puf_hash: bytes,
+    reg_id: str,
+    reg_ip: str
 ):
         return {
             "sm_id": sm_id,
@@ -96,5 +98,7 @@ class REGNode:
             "m2": m2.hex(),
             "sigma_reg": sigma_reg.hex(),
             "kyber_ct_reg": ct_reg.hex(),
-            "sk_puf_hash": sk_puf_hash.hex()
+            "sk_puf_hash": sk_puf_hash.hex(),
+            "reg_id": reg_id,
+            "reg_ip": reg_ip
         }
