@@ -689,5 +689,45 @@
         "timestamp": 1770571862,
         "session_key_hash": "7dd20694e6c322cd2f69fbc1e5632e38ab399c6dc78780bc23b5663babc99470",
         "status": "AUTH_SUCCESS"
+    },
+    {
+        "sm_id": "sm1",
+        "reg_id": "reg1",
+        "reg_ip": "10.0.1.1",
+        "timestamp": 1772735327,
+        "session_key_hash": "8ef5e62730814b8c5caeb555ae6ef7e1ee188d796e1582cfaba59fa98bebec52",
+        "status": "AUTH_SUCCESS"
+    },
+    {
+        "sm_id": "sm6",
+        "reg_id": "reg2",
+        "reg_ip": "10.0.2.1",
+        "timestamp": 1772735355,
+        "session_key_hash": "b9cc3f554388fa4b05a9f6a62dbd3a749afc794d973c73f28775929e3a8e3fe7",
+        "status": "AUTH_SUCCESS"
+    },
+    {
+        "sm_id": "sm6",
+        "reg_id": "reg2",
+        "reg_ip": "10.0.2.1",
+        "timestamp": 1772737248,
+        "session_key_hash": "6f205eb0286ac138e4d60f95cc0b2d6af732468e32383de6c40b3443c4061d62",
+        "status": "AUTH_SUCCESS"
+    },
+    {
+        "sm_id": "sm1",
+        "reg_id": "reg1",
+        "reg_ip": "10.0.1.1",
+        "timestamp": 1772737256,
+        "session_key_hash": "daeae9f3be8e3447ab613c23b04d8a5916cea52cc4dc331c8749ab92838b5845",
+        "status": "AUTH_SUCCESS"
+    },
+    {
+        "sm_id": "sm1",
+        "reg_id": "reg1",
+        "reg_ip": "10.0.1.1",
+        "timestamp": 1772877977,
+        "session_key_hash": "b188a5fd67fbc8e1e8b0e53068553fee4def9303dd734898d3cd8bea44749cb1",
+        "status": "AUTH_SUCCESS"
     }
 ]

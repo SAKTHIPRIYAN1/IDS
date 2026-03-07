@@ -1,16 +1,16 @@
 {
     "devices": {
         "sm6": {
-            "challenge": "e66a306e3c9ffe1cea902d1c1b2792919b74041a23ed1678fd51a10352505513",
-            "helper_data": "0719d042a9052ccb88ee961b905a3e57a5a094a61368b51eb3ec11def8a43d02",
-            "puf_secret": "71a3c65534efb9b257244fc5c235504d466f030c65aa7fb49dccd8ca657aa46a",
-            "puf_response": "b0021636730d78974dd2564611a111bc7209c2ad9720c52f89312f065bb5dcbc"
+            "challenge": "2559badc1ac3af147dedd01023541df2c5a60e74e5b3280b16c2821a9ea75fda",
+            "helper_data": "d99584a4920761436cb5c0955039b06dec895ae726b7db08ea4ff74c484c35ab",
+            "puf_secret": "e8e1e9dea2a479fb7ab03e7134e12801af80718f57316f457c5bd09964ac9d4a",
+            "puf_response": "8e91e086b738959356de51fdfb8ebfd80a8da1d7987fc504fff98b7d3f30b792"
         },
         "sm1": {
-            "challenge": "500548be04359a77c60654ef72822fa192d617a184235b1619950334bbd201b1",
-            "helper_data": "76af51ececc4d906502f9dc1500cbf7cf71fdd615bb0ec735aca7a323b463a7c",
-            "puf_secret": "8fc1f53d7d51d9faf2eb64f86c2e34715400c63c06bd0de5629f87047c12d249",
-            "puf_response": "308b166c74f560ffb8c2842d73e993e4e98a46507dd846776064b5250490e2b5"
+            "challenge": "48498cacf433f6802972126f0d9e36a00105f1323b9bc11134151a82788737a5",
+            "helper_data": "b93a74cac74bc18b902e693f753d9580103eab1a40d94259ca16292c1f965260",
+            "puf_secret": "754d470fe49194c7890a7a6b705b75186035ece2f46d0ac9fec9fdd4346a215c",
+            "puf_response": "6b6d1106a5cf45347c33fff5218abb95390da5a95e5085e0064bdc0de5b276ce"
         },
         "sm2": {
             "challenge": "acd8026643f2d65cb7eddae5cf7c2b07916eba0903fc19be38506baaf5de077d",

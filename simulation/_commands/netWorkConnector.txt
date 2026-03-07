@@ -5,8 +5,8 @@ On my terminal
 
 
 
-On mini
-    so ps
+On my terminal
+    ps -au | grep "mininet"
 
 On my terminal
     sudo ip link set veth-so netns 40432 (PID)
