@@ -1,22 +1,22 @@
 {
     "devices": {
         "sm6": {
-            "challenge": "2559badc1ac3af147dedd01023541df2c5a60e74e5b3280b16c2821a9ea75fda",
-            "helper_data": "d99584a4920761436cb5c0955039b06dec895ae726b7db08ea4ff74c484c35ab",
-            "puf_secret": "e8e1e9dea2a479fb7ab03e7134e12801af80718f57316f457c5bd09964ac9d4a",
-            "puf_response": "8e91e086b738959356de51fdfb8ebfd80a8da1d7987fc504fff98b7d3f30b792"
+            "challenge": "2e0045d9d956ec2a670dc588207694aca584ba955b09ad3999209f8eb94c5a2c",
+            "helper_data": "d82568614a1a4bc22e5b9f2cab53d4db8055a505df05bfeae8b804d411eb72ee",
+            "puf_secret": "29bd5976e56b92ede30e2af336ffa8f06b1c122bb5d0cb9b22097034d27ad3ce",
+            "puf_response": "a574ee07a42e7e7cacf093f316a971f83d1db41ab4527a3beb5929bcd2b5ae5a"
         },
         "sm1": {
-            "challenge": "48498cacf433f6802972126f0d9e36a00105f1323b9bc11134151a82788737a5",
-            "helper_data": "b93a74cac74bc18b902e693f753d9580103eab1a40d94259ca16292c1f965260",
-            "puf_secret": "754d470fe49194c7890a7a6b705b75186035ece2f46d0ac9fec9fdd4346a215c",
-            "puf_response": "6b6d1106a5cf45347c33fff5218abb95390da5a95e5085e0064bdc0de5b276ce"
+            "challenge": "b8afdd0ec5b566d566a35c0bd64487daacef84fad17d5e6ad0ebc9e1ee9d8415",
+            "helper_data": "3fd798c351a814181cff3c674d43e5a42230c8ed487967afa7ab1c0b3de90d8d",
+            "puf_secret": "1d7a0f7f4f87df2cae8d40418838d95de76c99a5ef3055320ff1c7331d1b5837",
+            "puf_response": "bcc2759b2f977f6976116a4c2e9dfb1bc5724aa2049b59565660d568ded51e20"
         },
         "sm2": {
-            "challenge": "acd8026643f2d65cb7eddae5cf7c2b07916eba0903fc19be38506baaf5de077d",
-            "helper_data": "f5fd403036faf9a8e9476bb606a7e381e3da0d68396a7712dd20fd7292a4c33e",
-            "puf_secret": "7b2153cb3d3061dd4e4169255bf5dcab288c7fde6b2b390a4f51144c67569a7a",
-            "puf_response": "4149ea768e4302da94a4cfec8f8726dd563c3ce5d9684b69bb14a7332a825c7e"
+            "challenge": "960814c5a55097361c1bcc35f35dc2ac9bd9fa20d814824f141ad866b2f9f23f",
+            "helper_data": "c3315093a80381f583a48239b6dcf0f9ab16f4f6199c9a936a1f9b753957aa11",
+            "puf_secret": "d28292e89afe5474cd5801cc4824f2ee9b9922e8d56219a977d5d846f221b97b",
+            "puf_response": "2a1327d92d1aa15a48f28d5f2a54f10bf1c89ecaacdf2a01b7ca7a1bf3367cd4"
         }
     },
     "sessions": {}

@@ -9,6 +9,7 @@ import logging
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from crypto.reg_node import REGNode
 from crypto.sp_node import SPNode
+from crypto.tokenmanager import TokenManager
 
 # Configure logging
 logging.basicConfig(
@@ -59,6 +60,8 @@ def start_reg_server(reg_id):
 
             # ---------------- BLOCK ENFORCEMENT ----------------
             sm_id = payload.get("device_id")
+            sm_ip = payload.get("sm_ip")
+            sm_port = payload.get("sm_port")
             if sm_id in blocklist:
                 logging.debug(f"[REG_SERVER][BLOCK_ENFORCEMENT] Blocked SM {sm_id} attempted to connect — rejected")
                 print(f"[REG] Blocked SM {sm_id} attempted to connect — rejected")
@@ -100,14 +103,16 @@ def start_reg_server(reg_id):
             # ---- Build message to SP ----
             logging.debug("[REG_SERVER][BUILD_MESSAGE] Building message to SP")
             forward_msg = reg.build_message_to_sp(
-                sm_id=payload["device_id"],
-                m2=m2,
-                sigma_reg=sigma_reg,
-                ct_reg=ct_reg,
-                sk_puf_hash=sk_puf_hash,
-                reg_id=reg_id,
-                reg_ip=reg_ip
-            )
+            sm_id=payload["device_id"],
+            m2=m2,
+            sigma_reg=sigma_reg,
+            ct_reg=ct_reg,
+            sk_puf_hash=sk_puf_hash,
+            reg_id=reg_id,
+            reg_ip=reg_ip,
+            sm_ip=sm_ip,
+            sm_port=sm_port
+        )
             logging.debug(f"[REG_SERVER][BUILD_MESSAGE] Built message to SP: {json.dumps(forward_msg, indent=4)}")
 
             # ---- Send to SP ----

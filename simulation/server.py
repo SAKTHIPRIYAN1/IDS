@@ -10,8 +10,10 @@ import json
 import time
 import threading
 from collections import defaultdict, deque
+import logging
 
 from crypto.sp_node import SPNode
+from crypto.tokenmanager import TokenManager
 from ids_model import check_hybrid_intrusion_live
 import oqs
 
@@ -104,10 +106,6 @@ def update_flow(sm_id, pkt_size):
 def detect_replay(sm_id, timestamp, nonce, usage):
     now = time.time()
 
-    # ---- freshness check (clock skew tolerant) ----
-    if abs(now - timestamp) > CLOCK_SKEW_TOLERANCE:
-        return True, "Stale timestamp"
-
     # ---- nonce reuse (only if nonce is provided) ----
     if nonce is not None:
         ts_bucket = int(timestamp)
@@ -141,43 +139,9 @@ def handle_auth_from_reg():
     print("[SP] Auth listener active")
 
     while True:
-        conn, _ = sock.accept()
-        try:
-            data = conn.recv(16384)
-            print(f"[SP DEBUG] Raw data received: {data}")  # Debug print
-            payload = json.loads(data.decode())
-            print(f"[SP DEBUG] Decoded payload: {payload}")  # Debug print
-
-            # Check if the request is from an SO
-            if "so_id" in payload:
-                print(f"[SP] Received SO authentication request from {payload['so_id']}")
-                handle_so_auth(conn, payload)
-            elif "sm_id" in payload:
-                # Handle SM authentication
-                sm_id = payload["sm_id"]
-                timestamp = payload.get("timestamp", int(time.time()))
-                log_entry = sp.handle_reg_message(payload)
-                authenticated_sms[log_entry["sm_id"]] = log_entry
-                print(f"[SP] AUTH SUCCESS → {log_entry['sm_id']}")
-                conn.sendall(json.dumps({"status": "AUTH_SUCCESS"}).encode())
-
-                # Log the successful SM authentication to activity.json
-                sm_log_entry = {
-                    "event": "SM_AUTH_SUCCESS",  # Specify the event type
-                    "sm_id": sm_id,
-                    "timestamp": timestamp,
-                    "status": "AUTH_SUCCESS"
-                }
-                log_auth_activity(sm_log_entry)
-            else:
-                print("[SP AUTH ERROR] Invalid authentication payload")
-                conn.sendall(json.dumps({"status": "AUTH_FAILED", "error": "Invalid payload"}).encode())
-
-        except Exception as e:
-            print("[SP AUTH ERROR]", e)
-            conn.sendall(json.dumps({"status": "AUTH_FAILED", "error": str(e)}).encode())
-        finally:
-            conn.close()
+        conn, addr = sock.accept()
+        print(f"[SP] Connection received from {addr}")  # Debugging connection
+        process_request(conn, addr)  # Use process_request to handle the connection
 
 # ---------------- SO AUTH HANDLER ----------------
 import json
@@ -294,6 +258,84 @@ def log_auth_activity(log_entry):
     except Exception as e:
         print(f"[SP ERROR] Failed to log authentication activity: {e}")
 
+# ---------------- AUTH REQUEST HANDLER ----------------
+def handle_auth_request(payload):
+
+    print(f"[SP DEBUG] Incoming payload: {json.dumps(payload, indent=4)}")
+
+    device_id = payload.get("sm_id") or payload.get("device_id") or payload.get("smId")
+
+    sm_ip = payload.get("sm_ip")
+    sm_port = payload.get("sm_port")
+
+    if device_id:
+
+        new_token = TokenManager.create_token(device_id=device_id, issuer="SP")
+
+        print(f"[SP] Created JWT Token: {new_token}")
+
+        authenticated_sms[device_id] = {
+            "time": time.time(),
+            "sm_ip": sm_ip
+        }
+
+        response = {
+            "status": "success",
+            "token": new_token
+        }
+
+        try:
+            sm_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sm_sock.connect((sm_ip, sm_port))
+            sm_sock.sendall(json.dumps(response).encode())
+            sm_sock.close()
+            print(f"[SP → SM] JWT sent to {device_id}")
+
+        except Exception as e:
+            print("SP DEBUG sm_ip:", sm_ip)
+            print("SP DEBUG sm_port:", sm_port)
+            print("[SP ERROR] Failed sending JWT to SM:", e)
+
+        return {"status": "forwarded"}
+
+    else:
+
+        return {"status": "failure", "message": "Device ID missing"}
+    
+# ---------------- PROCESS REQUEST ----------------
+def process_request(conn, addr):
+
+    try:
+
+        data = conn.recv(16384)
+
+        if not data:
+            logging.error("[SP] Empty request received")
+            return
+
+        payload = json.loads(data.decode())
+
+        logging.debug(f"[SP] Received payload: {json.dumps(payload, indent=4)}")
+
+        # ---------- SO AUTH ----------
+        if "so_id" in payload:
+            handle_so_auth(conn, payload)
+            return
+
+        # ---------- SM AUTH ----------
+        if "sm_id" in payload or "device_id" in payload or "smId" in payload:
+            response = handle_auth_request(payload)
+            if response:
+                conn.sendall(json.dumps(response).encode())
+            return
+        print("[SP] Unknown authentication payload")
+
+    except Exception as e:
+        logging.error(f"[SP] Error processing request: {e}")
+
+    finally:
+        conn.close()
+        
 # ---------------- MAIN ----------------
 def start_server():
     threading.Thread(target=handle_auth_from_reg, daemon=True).start()
@@ -309,25 +351,36 @@ def start_server():
         try:
             data, _ = recv_sock.recvfrom(8192)
             payload = json.loads(data.decode())
-
-            action = payload.get("action")
-            if action == "BLOCK":
-                sm_id = payload.get("smId")
-                reason = payload.get("reason")
-                print(f"[SP] Received BLOCK command for SM {sm_id} with reason: {reason}")  # Debug print
-                handle_block_command(sm_id, reason)
-                continue
-
             sm_id     = payload.get("smId")
             usage     = payload.get("usage", 0)
             timestamp = payload.get("timestamp", 0)
-            nonce     = payload.get("nonce", None)  # Default to None if nonce is not provided
+            nonce     = payload.get("nonce", None)
+            token     = payload.get("token", None)
 
-            if sm_id not in authenticated_sms:
-                print(f"[SP WARNING] Unauthenticated SM {sm_id}")
-                print(f"[SP ACTION] Traffic ignored (fail-closed)")
 
-                continue
+            if not token:
+                print(f"[SP] No token provided in usage report from {sm_id}")
+                if sm_id not in authenticated_sms:
+                    print(f"[SP] Unauthenticated SM {sm_id}")
+                    print(f"[SP] Rejecting usage report from unauthenticated SM {sm_id}")
+                    continue
+                else:
+                    print(f"[SP] Authenticated SM {sm_id} sent usage report without token")
+                    handle_auth_request(payload)
+            else:
+                decodedResult = TokenManager.validate_payload(payload)
+                if not decodedResult:
+                    print(f"[SP] Invalid token from {sm_id}")
+                    continue
+                isExpired, decoded = decodedResult
+                if  isExpired:
+                    print(f"[SP] Expired token from {sm_id}")
+                    handle_auth_request(payload)
+                    continue
+                elif decoded.get("device_id") != sm_id:
+                    print(f"[SP] Token device_id mismatch for {sm_id}")
+                    continue
+                    
 
             # ---------- REPLAY DETECTION ----------
             replay, reason = detect_replay(sm_id, timestamp, nonce, usage)

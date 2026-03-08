@@ -9,6 +9,7 @@ import json
 import os
 import threading
 from crypto.so_node import SONode
+from crypto.tokenmanager import TokenManager
 
 SO_LISTEN_IP = "0.0.0.0"
 SO_LISTEN_PORT = 9999          # SP → SO (alerts)
@@ -47,18 +48,33 @@ def control_listener():
 
         # ---- FORWARD TO SP ----
         if action == "BLOCK":
-            try:
-                sp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sp_sock.sendto(
-                    json.dumps(cmd).encode(),
-                    (SP_IP, SP_USAGE_PORT)
-                )
-                sp_sock.close()
+            forward_to_sp(action, sm_id, reason)
 
-                print(f"[SO → SP] BLOCK command forwarded for {sm_id}\n")
+def forward_to_sp(action, sm_id, reason):
+    # Build payload
+    payload = {
+        "action": action,
+        "sm_id": sm_id,
+        "reason": reason
+    }
 
-            except Exception as e:
-                print(f"[SO ERROR] Failed to forward BLOCK to SP: {e}")
+    # Inject token into the payload
+    token = TokenManager.create_token(device_id=sm_id, issuer="SO")
+    payload = TokenManager.inject_token(payload, token)
+
+    # Forward to SP
+    try:
+        sp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sp_sock.sendto(
+            json.dumps(payload).encode(),
+            (SP_IP, SP_USAGE_PORT)
+        )
+        sp_sock.close()
+
+        print(f"[SO → SP] BLOCK command forwarded for {sm_id}\n")
+
+    except Exception as e:
+        print(f"[SO ERROR] Failed to forward BLOCK to SP: {e}")
 
 # ---------------- NETWORK CHECK ----------------
 def check_interface():

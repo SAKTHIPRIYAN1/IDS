@@ -102,7 +102,9 @@ class REGNode:
         ct_reg: bytes,
         sk_puf_hash: bytes,
         reg_id: str,
-        reg_ip: str
+        reg_ip: str,
+        sm_ip: str,
+        sm_port: int
     ):
         logging.debug("[REG][BUILD_MESSAGE_TO_SP] Building message to SP")
         logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] SM ID: {sm_id}")
@@ -112,6 +114,8 @@ class REGNode:
         logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] Hashed SK_PUF: {sk_puf_hash.hex()}")
         logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] REG ID: {reg_id}")
         logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] REG IP: {reg_ip}")
+        logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] SM IP: {sm_ip}")
+        logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] SM Port: {sm_port}")
 
         message = {
             "sm_id": sm_id,
@@ -122,7 +126,10 @@ class REGNode:
             "kyber_ct_reg": ct_reg.hex(),
             "sk_puf_hash": sk_puf_hash.hex(),
             "reg_id": reg_id,
-            "reg_ip": reg_ip
+            "reg_ip": reg_ip,
+            "sm_ip": sm_ip,
+            "sm_port": sm_port
+            
         }
 
         logging.debug(f"[REG][BUILD_MESSAGE_TO_SP] Built message: {message}")
